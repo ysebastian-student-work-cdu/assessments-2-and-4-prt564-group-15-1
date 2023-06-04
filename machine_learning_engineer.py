@@ -297,3 +297,131 @@ evaluate_model_perfomance(Y, cluster_labels, "Clustering Results")
 # In[ ]:
 
 
+
+
+
+
+# #### PERFOMING CLROSS VALIDATION AND HYPER PARAMETER TUNING.
+
+# In[80]:
+
+
+# transform the datasets
+Xdata = pca.transform(X)
+Ydata = Y.copy()
+
+
+# In[81]:
+
+
+# get the data we have
+print("DATA SHAPES ARE  : ", Xdata.shape, Ydata.shape)
+
+
+# ### FUnction to perfom the task,.
+# - In this case, I will create a fuction to takes the models, itparam and data to be used.
+# - The function will first split the data into 80% and 20% splits and then after that It will perfom a hypa-parameter tuning with 5 folds and using gridsearchCV.
+# - Since we are dividing the data into 5 folds, 4 of the folds will be used for training i.e 80% of the dataset while the other 1 fold or 20% will be used for evaluation,
+# - The function then returns the best estimator with the best parameters selected to be used to evaluate the model for comparison..
+# 
+# - Here is the implimentation of the function
+
+
+from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+
+
+
+# We fisrt need to split the data into 80:20 rule as suggested before starting the tuning methods..
+
+X_train, X_test, Y_train, Y_test = train_test_split(Xdata, Ydata, test_size=0.2, random_state=42)
+
+print(f"New shapes for Training are {X_train.shape} , {Y_train.shape}")
+print(f"New shapes for Testing are {X_test.shape} , {Y_test.shape}")
+    
+def kfold_cross_validation(X, Y, model, params):
+    # split the data into 80% training and 20% testing sets
+    
+    # Perform k-fold cross-validation
+    cv = GridSearchCV(model, params, cv=5, scoring='accuracy', n_jobs=-1)  # You can change the scoring metric as needed
+    
+    # Fit the model on the training data
+    cv.fit(X,Y)
+    return cv
+
+
+# 
+# ### Lets now do the TUning on the 3 models we trained above.
+# 
+# 
+# ### NOTE:  
+# - For Naive Bayes, We will not do hyperameter tuning since the model is not parametric and is based on probs hence we will only do for the two models i.e SVM and RANDOM CLASSIFIER>...
+# 
+# #### 1. Random Forest Classifier.
+
+
+# lets define parameters for  grid with random forest classifier
+rf_params = {
+    'n_estimators': [50, 100,250, 500],
+    'max_depth': [None, 5, 10],
+    'min_samples_split': [2, 5, 10]
+}
+
+
+
+# create the classifier with gridsearchCV
+from sklearn.ensemble import RandomForestClassifier
+
+# we call the  function for RF optimization of features
+grid_rf_model = kfold_cross_validation(X_train, Y_train, RandomForestClassifier(random_state=42), rf_params)
+
+
+# get to print the best parameterst
+
+print(f"Best Parameters for Random FOrest Classifier are :\n\t    {grid_rf_model.best_params_}")
+
+
+# get the best estimator and evaluate it...
+grid_rf_model.best_estimator_
+
+
+
+# evaluate random forest model witht the best model gotten..
+
+print("Here are the results evaluation of the random forst model with the best model after tuning")
+evaluate_model_perfomance(Y_test, grid_rf_model.best_estimator_.predict(X_test), "Tuned Random forest  Model")
+
+
+
+# ### 2. Suppport Vector Machine ((SVM) with Hyperparameter tuning.
+# - Here is the code for tuning of SVM model..
+
+
+# define parameters for svm...
+svm_params = {
+    'C': [0.1, 1, 10],
+    'kernel': ['linear', 'rbf'],
+    'gamma': [0.1, 1, 10]
+}
+
+
+
+# lets create the svm object and run it with the grid classfier..
+
+from sklearn.svm import SVC
+
+# call the validation and tuning function
+grid_svm_model = kfold_cross_validation(X_train, Y_train, SVC(class_weight='balanced', random_state=42), svm_params)
+
+
+
+# get the best parameter for svm..
+print(f"Best Parameters for Random SVM Classifier are :\n\t    {grid_svm_model.best_params_}")
+
+
+# evaluate SVM model witht the best model gotten..
+
+print("Here are the results evaluation of the SVM model with the best model after tuning")
+evaluate_model_perfomance(Y_test, grid_svm_model.best_estimator_.predict(X_test), "Tuned SVM Model")
+
